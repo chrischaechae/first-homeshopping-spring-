@@ -1,0 +1,334 @@
+<?xml version="1.0" encoding="UTF-8" ?>  
+<!DOCTYPE mapper   
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"   
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">  
+
+<mapper namespace="BoardDao">  
+
+	<select id="boardList" parameterType="map" resultType="ProductVO">
+    
+         	select * from (select ROW_NUMBER() OVER(order by pro_no desc) rnum,pro_no,pro_name,pro_price,pro_img from product 
+         	<where>
+				<if test="keyWord !='' and keyField == 'pro_name'">
+				pro_name like '%' ||#{keyWord}||'%'
+				</if>
+         	</where> 	
+         	order by pro_no desc)
+         	<![CDATA[
+		WHERE RNUM >= #{start} AND RNUM <= #{end}	
+		]]>	
+        <!--  SELECT pro_no,pro_name,pro_price,pro_img FROM (SELECT A.*, ROWNUM RNUM FROM (SELECT * FROM product ORDER BY pro_no DESC)A)
+		<![CDATA[
+		WHERE RNUM >= #{start} AND RNUM <= #{end}	
+		]]>	 -->	
+	</select>
+	
+	<select id="boardCount" parameterType="map" resultType="Integer">
+		SELECT COUNT(*)	FROM product 
+			<where>
+				<if test="keyWord !='' and keyField == 'pro_name'">
+				pro_name like '%' ||#{keyWord}||'%'
+				</if>
+         	</where> 		
+	</select>
+	
+	<insert id="joinconfirm" parameterType="ClientVO">
+		insert into client (client_no,client_id,client_pw,client_name,client_phone,client_address,client_chk) values (client_seq.nextval,#{client_id},#{client_pw},#{client_name},#{client_phone},#{client_address},1)
+	</insert>
+	
+	<select id="loginconfirm" parameterType="ClientVO" resultType="ClientVO">
+		select client_no,client_id,client_pw,client_name,client_phone,client_address,client_chk from client where client_id=#{client_id} and client_pw=#{client_pw}
+	</select>
+	
+	<update id="updatechk" parameterType="String">
+		update client set client_chk=client_chk+1 where client_id=#{client_id}
+	</update>
+	
+	<select id="duplid" parameterType="ClientVO" resultType="Integer">
+		select count(*) from client where client_id=#{client_id}
+	</select>
+	
+	<select id="duplname" parameterType="ClientVO" resultType="Integer">
+		select count(*) from client where client_name=#{client_name} and client_phone=#{client_phone}
+	</select>
+	
+	<select id="editinfo" parameterType="int" resultType="ClientVO">
+		select * from client where client_no=#{client_no}
+	</select>
+	
+	<update id="updateinfo" parameterType="ClientVO">
+		update client set client_id=#{client_id},client_pw=#{client_pw},client_name=#{client_name},client_phone=#{client_phone},client_address=#{client_address} where client_no=#{client_no} 
+	</update>
+	
+	<select id="findid" parameterType="map" resultType="ClientVO">
+		select client_id from client where client_name=#{client_name, jdbcType=VARCHAR} and client_phone=#{client_phone,jdbcType=VARCHAR}
+	</select>
+	
+	<select id="findpw" parameterType="map" resultType="ClientVO">
+		select client_pw from client where client_name=#{client_name, jdbcType=VARCHAR} and client_id=#{client_id,jdbcType=VARCHAR}
+	</select>
+	
+	<select id="pro_detail" parameterType="int" resultType="ProductVO">
+		select * from product where pro_no=#{pro_no}
+	</select>
+	
+	<select id="getimg" parameterType="int" resultType="ImgVO">
+		select img_name from img where pro_no=#{pro_no}
+	</select>
+	
+	<select id="choiceone" parameterType="int" resultType="ChoiceVO">
+		select * from choice where pro_no=#{pro_no}
+	</select>
+	
+	<insert id="addbasket" parameterType="BasketVO">
+		insert into basket (basket_no,pro_no,client_id,choice_no,basket_cnt) values (basket_seq.nextval,#{pro_no},#{client_id},#{choice_no},#{basket_cnt})
+	</insert>
+	
+	<resultMap type="ProductVO" id="ProductVO">
+		<result property="pro_no" column="pro_no"/>
+		<result property="pro_name" column="pro_name"/>
+		<result property="pro_price" column="pro_price"/>
+		<result property="pro_img" column="pro_img"/>
+		<result property="pro_detail" column="pro_detail"/>
+		
+		<collection property="OrderingVO" resultMap="OrderingVO"/>
+		<collection property="ChoiceVO" resultMap="ChoiceVO"/>
+	</resultMap>
+	
+	<resultMap type="BasketVO" id="BasketVO">
+		<result property="basket_no" column="basket_no"/>
+		<result property="pro_no" column="pro_no"/>
+		<result property="choice_no" column="choice_no"/>
+		<result property="client_id" column="client_id"/>
+		<result property="basket_cnt" column="basket_cnt"/>
+		
+		<collection property="ProductVO" resultMap="ProductVO"/>
+		<collection property="ChoiceVO" resultMap="ChoiceVO"/>
+	</resultMap>
+	<select id="basketlist" parameterType="String" resultMap="BasketVO">
+		select product.pro_name,product.pro_price,product.pro_img,basket.basket_no,basket.choice_no,basket.basket_cnt,choice.choice_size,choice.choice_color from basket inner join product on basket.pro_no=product.pro_no inner join choice on basket.choice_no=choice.choice_no where client_id=#{client_id} order by basket.basket_no desc
+	</select>
+	
+	 <select id="basketlist1" parameterType="String" resultMap="BasketVO">
+		select choice.choice_size,choice.choice_color from basket inner join choice on basket.choice_no=choice.choice_no where client_id=#{client_id}
+	</select>
+	
+	<delete id="delbasket" parameterType="int">
+		delete from basket where basket_no=#{basket_no}
+	</delete>
+	
+	<delete id="ddelbasket" parameterType="int">
+		delete from basket where basket_no=#{basket_no}
+	</delete>
+	
+	<select id="choice_detail" parameterType="int" resultType="ChoiceVO">
+		select * from choice where choice_no=#{choice_no}
+	</select>
+	
+	<insert id="pay" parameterType="OrderingVO">
+		insert into ordering (ordering_no,pro_no,choice_no,ordering_num,ordering_price,client_id,ordering_request,ordering_payment,ordering_date,ordering_status,ordering_confirm) values (ordering_seq.nextval,#{pro_no},#{choice_no},#{ordering_num},#{ordering_price},#{client_id},#{ordering_request},#{ordering_payment},sysdate,'배송준비중',0)
+	</insert>
+	
+	<resultMap type="OrderingVO" id="OrderingVO">
+		<result property="ordering_no" column="ordering_no"/>
+		<result property="pro_no" column="pro_no"/>
+		<result property="choice_no" column="choice_no"/>
+		<result property="ordering_num" column="ordering_num"/>
+		<result property="ordering_price" column="ordering_price"/>
+		<result property="client_id" column="client_id"/>
+		<result property="ordering_request" column="ordering_request"/>
+		<result property="ordering_payment" column="ordering_payment"/>
+		<result property="ordering_date" column="ordering_date"/>
+		<result property="ordering_status" column="ordering_status"/>
+		<result property="ordering_confirm" column="ordering_confirm"/>
+		
+		<collection property="ProductVO" resultMap="ProductVO"/>
+		<collection property="ChoiceVO" resultMap="ChoiceVO"/>
+	</resultMap>	
+	<resultMap type="ChoiceVO" id="ChoiceVO">
+		<result property="choice_no" column="choice_no"/>
+		<result property="choice_size" column="choice_size"/>
+		<result property="choice_color" column="choice_color"/>
+		<result property="choice_stock" column="choice_stock"/>
+		<result property="pro_no" column="pro_no"/>
+		
+		<collection property="OrderingVO" resultMap="OrderingVO"/>
+		<collection property="ProductVO" resultMap="ProductVO"/>
+	</resultMap>
+	
+	<resultMap type="OorderingVO" id="OorderingVO">
+		<result property="ordering_no" column="ordering_no"/>
+		<result property="ordering_num" column="ordering_num"/>
+		<result property="ordering_price" column="ordering_price"/>
+		<result property="client_id" column="client_id"/>
+		<result property="ordering_request" column="ordering_request"/>
+		<result property="ordering_payment" column="ordering_payment"/>
+		<result property="ordering_date" column="ordering_date"/>
+		<result property="ordering_status" column="ordering_status"/>
+		<result property="ordering_confirm" column="ordering_confirm"/>
+		
+		<association property="ProductVO" resultMap="ProductVO"/>
+		<association property="ChoiceVO" resultMap="ChoiceVO"/>
+	</resultMap>	
+	<select id="orderlist1" parameterType="map" resultType="OorderingVO">	
+SELECT   
+		ordering_no,
+		ordering_date,
+         ordering_num,
+         ordering_price,
+         ordering_status,
+         ordering_confirm,
+         ordering_request,
+         ordering_payment,
+         pro_name,
+         pro_img,
+         choice_size,
+         choice_color
+  FROM   (SELECT   *
+            FROM   (  SELECT   ROW_NUMBER ()
+                                  OVER (ORDER BY ordering.ordering_date DESC)
+                                  rnum,
+                               ordering.ordering_no,  
+                               ordering.ordering_date,
+                               ordering.ordering_num,
+                               ordering.ordering_price,
+                               ordering.ordering_status,
+                               ordering.ordering_request,
+                               ordering.ordering_payment,
+                               ordering.ordering_confirm,
+                               product.pro_name,
+                               product.pro_img,
+                               choice.choice_size,
+                               choice.choice_color
+                        FROM         ordering
+                                  INNER JOIN
+                                     product
+                                  ON ordering.pro_no = product.pro_no
+                               INNER JOIN
+                                  choice
+                               ON ordering.choice_no = choice.choice_no
+          <where>
+			<if test="keyWord !='' and keyField == 'ordering_date'">
+				ordering.ordering_date like '%' ||#{keyWord}||'%'
+			</if>
+			<if test="keyWord !='' and keyField == 'pro_name'">
+				product.pro_name like '%' ||#{keyWord}||'%'
+			</if>
+			<if test="keyWord !='' and keyField == 'ordering_status'">
+				 ordering.ordering_status like '%' ||#{keyWord}||'%'
+			</if>
+			<if test="client_id !='' ">
+			 	and client_id=#{client_id}
+			</if>
+		</where>
+                    ORDER BY   ordering.ordering_date DESC)
+    
+	 	 <![CDATA[
+	 	WHERE RNUM >= #{start} AND RNUM <= #{end})
+		]]>
+	</select>
+	
+	
+	
+	<select id="bastkettopay" parameterType="int" resultMap="BasketVO">
+		select product.pro_no,product.pro_img,product.pro_name,product.pro_price,basket.basket_no,basket.basket_cnt,choice.choice_no,choice.choice_size,choice.choice_color from basket inner join product on basket.pro_no=product.pro_no inner join choice on basket.choice_no=choice.choice_no where basket_no=
+		<foreach collection="array" item="basket_no" open="any(" close=")" separator=",">
+		#{basket_no}
+		</foreach>
+	</select>
+	
+	<select id="detailbasket" parameterType="int" resultType="BasketVO">
+		select * from basket where basket_no=#{basket_no}
+	</select>
+	
+	<insert id="btopay" parameterType="map">
+		insert into ordering (ordering_no,pro_no,choice_no,ordering_num,ordering_price,client_id,ordering_request,ordering_payment,ordering_date,ordering_status,ordering_confirm) values (ordering_seq.nextval,#{pro_no},#{choice_no},#{ordering_num},#{ordering_price},#{client_id},#{ordering_request},#{ordering_payment},sysdate,'배송준비중',0)
+	</insert>
+	
+	<update id="minusstock" parameterType="map">
+		update choice set choice_stock=choice_stock-${choice_stock} where choice_no=#{choice_no}
+	</update>
+	
+	<select id="checkinfo" parameterType="map" resultType="Integer">
+		select count(*) from client where client_id=#{client_id} and client_pw=#{client_pw} 
+	</select>
+	
+	<select id="orderCount" parameterType="map" resultType="Integer">
+		select count(*) from (select
+                               ordering.ordering_no,  
+                               ordering.ordering_date,
+                               ordering.ordering_num,
+                               ordering.ordering_price,
+                               ordering.ordering_status,
+                               ordering.ordering_confirm,
+                               product.pro_name,
+                               product.pro_img,
+                               choice.choice_size,
+                               choice.choice_color
+                        FROM         ordering
+                                  INNER JOIN
+                                     product
+                                  ON ordering.pro_no = product.pro_no
+                               INNER JOIN
+                                  choice
+                               ON ordering.choice_no = choice.choice_no
+			<where>
+			<if test="keyWord !='' and keyField == 'ordering_date'">
+				ordering.ordering_date like '%' ||#{keyWord}||'%'
+			</if>
+			<if test="keyWord !='' and keyField == 'pro_name'">
+				product.pro_name like '%' ||#{keyWord}||'%'
+			</if>
+			<if test="keyWord !='' and keyField == 'ordering_status'">
+				 ordering.ordering_status like '%' ||#{keyWord}||'%'
+			</if>
+			<if test="client_id !='' ">
+			 	and client_id=#{client_id}
+			</if>
+		</where>
+		)
+	</select>
+	
+	<update id="status" parameterType="int">
+		update ordering set ordering_confirm=1 where ordering_no=#{ordering_no}
+	</update>
+	
+	<update id="refund" parameterType="int">
+		update ordering set ordering_status='환불신청' where ordering_no=#{ordering_no}
+	</update>
+	
+	<select id="checkstock" parameterType="int" resultType="Integer">
+		select choice_stock from choice where choice_no=#{choice_no}
+	</select>
+	
+	<select id="checkchoice_no" parameterType="int" resultType="Integer">
+		select choice_no from basket where basket_no=#{basket_no}
+	</select>
+	
+	<select id="checkcnt" parameterType="int" resultType="BasketVO">
+		select * from basket where basket_no=#{basket_no}
+	</select>
+	
+	<select id="ddcheck" parameterType="int" resultType="Integer">
+		select client_chk from client where client_no=#{client_no}
+	</select>
+	
+	<update id="updatebasket" parameterType="map">
+		update basket set basket_cnt=#{basket_cnt} where basket_no=#{basket_no}
+	</update>
+	
+	<select id="basketcnt" parameterType="BasketVO" resultType="Integer">
+		SELECT COUNT(*) from basket WHERE choice_no=#{choice_no} and client_id=#{client_id}	
+	</select>
+	
+	<update id="plusbasket" parameterType="BasketVO">
+		update basket set basket_cnt=basket_cnt+#{basket_cnt} where client_id=#{client_id}
+	</update>
+</mapper>
+
+
+
+
+
+
+
